@@ -21,9 +21,20 @@ jobs:
           cache: pnpm
           cache-dependency-path: web-panel/pnpm-lock.yaml
 
-      - name: Build
+      - name: Build web panel
         shell: pwsh
-        run: ./build.ps1 -Configuration Release
+        run: |
+          pnpm --dir web-panel install --frozen-lockfile
+          pnpm --dir web-panel run build
+
+      - name: Build solution
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -prerelease -products '*' -requires Microsoft.Component.MSBuild -property installationPath
+          $msbuild = Join-Path $vs 'MSBuild\Current\Bin\MSBuild.exe'
+          & $msbuild Wand-Enhancer.sln /m /t:Restore /p:RestorePackagesConfig=true
+          & $msbuild Wand-Enhancer.sln /m /t:Build "/p:Configuration=Release" "/p:Platform=Any CPU"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
 
       - uses: actions/upload-artifact@v4
         with:
